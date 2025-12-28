@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>登录 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #0d6efd;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">校园二手交易平台</div>
+
+        <form id="loginForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">用户名</label>
+                <input type="text" class="form-control" id="username"
+                       placeholder="请输入用户名" required>
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="form-label">密码</label>
+                <input type="password" class="form-control" id="password"
+                       placeholder="请输入密码" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-login">
+                登录
+            </button>
+
+            <div class="register-link">
+                <small class="text-muted">还没有账号？<a href="#" onclick="showRegister()">立即注册</a></small>
+            </div>
+        </form>
+
+        <div id="registerSection" style="display: none;">
+            <hr>
+            <h5 class="mb-3">用户注册</h5>
+            <div class="mb-3">
+                <input type="text" class="form-control" id="regUsername"
+                       placeholder="设置用户名">
+            </div>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="regPassword"
+                       placeholder="设置密码">
+            </div>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="regConfirmPassword"
+                       placeholder="确认密码">
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success flex-grow-1" onclick="register()">注册</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="showLogin()">返回登录</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            login();
+        });
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            try {
+                const response = await axios.post('/api/login', {
+                    username: username,
+                    password: password
+                });
+
+                console.log('登录响应:', response.data);
+
+                if (response.data.success) {
+                    // 保存用户信息到localStorage
+                    localStorage.setItem('user_id', response.data.user_id);
+                    localStorage.setItem('username', response.data.username || username);
+                    localStorage.setItem('login_time', new Date().toISOString());
+
+                    alert('登录成功！');
+                    window.location.href = 'index.html';
+                } else {
+                    alert('登录失败: ' + response.data.message);
+                }
+            } catch (error) {
+                console.error('登录错误:', error);
+                if (error.response) {
+                    alert('登录失败: ' + (error.response.data.message || '服务器错误'));
+                } else if (error.request) {
+                    alert('网络错误，请检查服务器是否运行');
+                } else {
+                    alert('请求错误: ' + error.message);
+                }
+            }
+        }
+
+        // 注册相关函数
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerSection').style.display = 'block';
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerSection').style.display = 'none';
+        }
+
+        function register() {
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+            const confirmPassword = document.getElementById('regConfirmPassword').value.trim();
+
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('两次输入的密码不一致');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('密码长度至少6位');
+                return;
+            }
+
+            alert('注册功能需要后端支持，请联系管理员添加用户');
+            // 这里可以调用注册API
+            // axios.post('/api/register', { username, password });
+        }
+    </script>
+</body>
+</html>

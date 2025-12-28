@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>数据可视化 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            transition: transform 0.3s;
+            height: 100%;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
+        .stat-card {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .stat-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .refresh-btn {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid py-4">
+    <!-- 页面标题和导航 -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">📊 数据可视化看板</h2>
+                    <p class="text-muted mb-0">实时展示平台交易数据与统计分析</p>
+                </div>
+                <div>
+                    <a href="index.html" class="btn btn-outline-primary">
+                        ← 返回商品列表
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">在售商品</h6>
+                            <h3 class="mb-0" id="activeProducts">--</h3>
+                            <p class="text-success mb-0 small">
+                                <span id="productChange">+0</span> 今日
+                            </p>
+                        </div>
+                        <div class="stat-icon text-primary">
+                            📦
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">成交订单</h6>
+                            <h3 class="mb-0" id="totalOrders">--</h3>
+                            <p class="text-success mb-0 small">
+                                <span id="orderChange">+0</span> 今日
+                            </p>
+                        </div>
+                        <div class="stat-icon text-success">
+                            💰
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">用户收藏</h6>
+                            <h3 class="mb-0" id="totalFavorites">--</h3>
+                            <p class="text-success mb-0 small">
+                                <span id="favoriteChange">+0</span> 今日
+                            </p>
+                        </div>
+                        <div class="stat-icon text-info">
+                            ⭐
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">活跃用户</h6>
+                            <h3 class="mb-0" id="activeUsers">--</h3>
+                            <p class="text-success mb-0 small">
+                                <span id="userChange">+0</span> 今日
+                            </p>
+                        </div>
+                        <div class="stat-icon text-warning">
+                            👥
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="row mb-4">
+        <!-- 商品类别分布 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📚 商品类别分布</h5>
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn"
+                            onclick="loadCategoryChart()" title="刷新">
+                        ↻
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <p class="text-muted small mb-0">展示各类别商品数量占比</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 价格分布 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">💰 价格区间分布</h5>
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn"
+                            onclick="loadPriceChart()" title="刷新">
+                        ↻
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <p class="text-muted small mb-0">不同价格区间的商品数量</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 更多图表 -->
+    <div class="row mb-4">
+        <!-- 每月交易趋势 -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📈 交易趋势分析</h5>
+                    <div>
+                        <select class="form-select form-select-sm w-auto d-inline"
+                                id="trendType" onchange="loadTrendChart()">
+                            <option value="monthly">月度趋势</option>
+                            <option value="weekly">周度趋势</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-secondary refresh-btn ms-2"
+                                onclick="loadTrendChart()" title="刷新">
+                            ↻
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                    <p class="text-muted small mb-0">展示平台交易量变化趋势</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 热门商品 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">🔥 热门商品 Top 5</h5>
+                </div>
+                <div class="card-body">
+                    <div id="hotProducts" class="list-group list-group-flush">
+                        <!-- 动态加载热门商品 -->
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3 text-primary">🔥</div>
+                                <div>
+                                    <div class="fw-medium">Python编程从入门到实践</div>
+                                    <small class="text-muted">收藏: 15次</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">¥68.5</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadHotProducts()">
+                            查看更多
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据更新时间 -->
+    <div class="row">
+        <div class="col">
+            <div class="text-center text-muted">
+                <small>数据最后更新时间: <span id="updateTime">--</span></small>
+                <button class="btn btn-sm btn-outline-secondary ms-3" onclick="refreshAll()">
+                    <span id="refreshIcon">↻</span> 刷新全部数据
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script>
+// 全局图表实例
+let categoryChartInstance = null;
+let priceChartInstance = null;
+let trendChartInstance = null;
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查登录状态
+    if (!checkLogin()) {
+        return;
+    }
+
+    // 初始化所有图表和数据
+    initDashboard();
+
+    // 设置自动刷新（每5分钟）
+    setInterval(refreshAll, 5 * 60 * 1000);
+});
+
+// 初始化仪表板
+function initDashboard() {
+    // 更新数据时间
+    updateDataTime();
+
+    // 加载统计数据
+    loadStatistics();
+
+    // 加载所有图表
+    loadCategoryChart();
+    loadPriceChart();
+    loadTrendChart();
+    loadHotProducts();
+}
+
+// 更新数据时间
+function updateDataTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    document.getElementById('updateTime').textContent = timeStr;
+}
+
+// 加载统计数据
+function loadStatistics() {
+    // 这里应该调用API获取统计数据
+    // 由于可能没有专门的统计API，我们使用模拟数据
+
+    // 模拟数据
+    const stats = {
+        activeProducts: Math.floor(Math.random() * 100) + 50,
+        totalOrders: Math.floor(Math.random() * 200) + 100,
+        totalFavorites: Math.floor(Math.random() * 300) + 200,
+        activeUsers: Math.floor(Math.random() * 50) + 30,
+        productChange: Math.floor(Math.random() * 10) + 1,
+        orderChange: Math.floor(Math.random() * 5) + 1,
+        favoriteChange: Math.floor(Math.random() * 15) + 5,
+        userChange: Math.floor(Math.random() * 3) + 1
+    };
+
+    // 更新DOM
+    document.getElementById('activeProducts').textContent = stats.activeProducts;
+    document.getElementById('totalOrders').textContent = stats.totalOrders;
+    document.getElementById('totalFavorites').textContent = stats.totalFavorites;
+    document.getElementById('activeUsers').textContent = stats.activeUsers;
+    document.getElementById('productChange').textContent = `+${stats.productChange}`;
+    document.getElementById('orderChange').textContent = `+${stats.orderChange}`;
+    document.getElementById('favoriteChange').textContent = `+${stats.favoriteChange}`;
+    document.getElementById('userChange').textContent = `+${stats.userChange}`;
+}
+
+// 加载商品类别图表
+function loadCategoryChart() {
+    // 调用API获取数据
+    api.get('hot_categories')
+        .then(data => {
+            renderCategoryChart(data.categories || [], data.counts || []);
+        })
+        .catch(error => {
+            console.error('加载类别图表失败:', error);
+            // 使用模拟数据
+            const categories = ['书籍', '电子产品', '生活用品', '服饰', '其他'];
+            const counts = [25, 18, 12, 8, 5];
+            renderCategoryChart(categories, counts);
+        });
+}
+
+// 渲染商品类别图表
+function renderCategoryChart(categories, counts) {
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+
+    // 销毁旧的图表实例
+    if (categoryChartInstance) {
+        categoryChartInstance.destroy();
+    }
+
+    // 颜色配置
+    const backgroundColors = [
+        'rgba(54, 162, 235, 0.7)',
+        'rgba(255, 99, 132, 0.7)',
+        'rgba(75, 192, 192, 0.7)',
+        'rgba(255, 206, 86, 0.7)',
+        'rgba(153, 102, 255, 0.7)',
+        'rgba(255, 159, 64, 0.7)'
+    ];
+
+    const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
+
+    // 创建新图表
+    categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: categories,
+            datasets: [{
+                data: counts,
+                backgroundColor: backgroundColors.slice(0, categories.length),
+                borderColor: borderColors.slice(0, categories.length),
+                borderWidth: 1,
+                hoverOffset: 15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 加载价格分布图表
+function loadPriceChart() {
+    // 调用API获取数据
+    api.get('price_distribution')
+        .then(data => {
+            renderPriceChart(data.price_ranges || [], data.counts || []);
+        })
+        .catch(error => {
+            console.error('加载价格图表失败:', error);
+            // 使用模拟数据
+            const priceRanges = ['0-50元', '51-100元', '101-200元', '201-500元', '501元以上'];
+            const counts = [35, 28, 18, 12, 7];
+            renderPriceChart(priceRanges, counts);
+        });
+}
+
+// 渲染价格分布图表
+function renderPriceChart(priceRanges, counts) {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    // 销毁旧的图表实例
+    if (priceChartInstance) {
+        priceChartInstance.destroy();
+    }
+
+    // 创建新图表
+    priceChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: priceRanges,
+            datasets: [{
+                label: '商品数量',
+                data: counts,
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '商品数量'
+                    },
+                    ticks: {
+                        stepSize: 5
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '价格区间'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `数量: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 加载趋势图表
+function loadTrendChart() {
+    const trendType = document.getElementById('trendType').value;
+
+    // 模拟数据
+    let labels, data;
+    if (trendType === 'monthly') {
+        labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        data = [12, 19, 15, 25, 22, 30, 35, 40, 38, 45, 50, 48];
+    } else {
+        labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        data = [8, 12, 10, 15, 18, 22, 20];
+    }
+
+    renderTrendChart(labels, data, trendType === 'monthly' ? '月度' : '周度');
+}
+
+// 渲染趋势图表
+function renderTrendChart(labels, data, title) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+
+    // 销毁旧的图表实例
+    if (trendChartInstance) {
+        trendChartInstance.destroy();
+    }
+
+    // 创建新图表
+    trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '交易量',
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '交易量（笔）'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: title
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+}
+
+// 加载热门商品
+function loadHotProducts() {
+    // 这里应该调用API获取热门商品
+    // 模拟数据
+    const hotProducts = [
+        { name: 'Python编程从入门到实践', price: 68.5, favorites: 15 },
+        { name: '二手iPhone 12', price: 2999, favorites: 12 },
+        { name: 'Java核心技术', price: 89, favorites: 10 },
+        { name: '小米充电宝', price: 79, favorites: 8 },
+        { name: '数据结构与算法', price: 45, favorites: 7 }
+    ];
+
+    const container = document.getElementById('hotProducts');
+    container.innerHTML = '';
+
+    hotProducts.forEach((product, index) => {
+        const rankEmoji = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][index];
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+            <div class="d-flex align-items-center" style="width: 100%;">
+                <div class="me-3" style="width: 30px; text-align: center; font-size: 1.2rem;">
+                    ${rankEmoji}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div class="fw-medium text-truncate">${product.name}</div>
+                    <small class="text-muted">收藏: ${product.favorites}次</small>
+                </div>
+                <span class="badge bg-primary rounded-pill ms-2">¥${product.price}</span>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// 刷新全部数据
+function refreshAll() {
+    const refreshBtn = document.querySelector('#refreshIcon');
+    refreshBtn.style.transform = 'rotate(360deg)';
+    refreshBtn.style.transition = 'transform 0.5s';
+
+    showMessage('正在刷新数据...', 'info');
+
+    // 重新加载所有数据和图表
+    updateDataTime();
+    loadStatistics();
+    loadCategoryChart();
+    loadPriceChart();
+    loadTrendChart();
+    loadHotProducts();
+
+    setTimeout(() => {
+        refreshBtn.style.transform = 'rotate(0deg)';
+        showMessage('数据刷新完成！', 'success');
+    }, 500);
+}
+
+// 添加一个API调用统计数据的函数（需要后端支持）
+function getPlatformStats() {
+    // 这里可以调用一个新的API端点来获取平台统计数据
+    // 例如：/api/stats
+    // 返回格式：
+    // {
+    //   active_products: 85,
+    //   total_orders: 156,
+    //   total_favorites: 245,
+    //   active_users: 42,
+    //   today_changes: {
+    //     products: 5,
+    //     orders: 3,
+    //     favorites: 12,
+    //     users: 2
+    //   }
+    // }
+
+    // 暂时返回模拟数据
+    return {
+        active_products: 85,
+        total_orders: 156,
+        total_favorites: 245,
+        active_users: 42,
+        today_changes: {
+            products: 5,
+            orders: 3,
+            favorites: 12,
+            users: 2
+        }
+    };
+}
+</script>
+</body>
+</html>

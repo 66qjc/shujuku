@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>发布商品 - 校园二手交易平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .required::after {
+            content: " *";
+            color: #dc3545;
+        }
+        .error-border {
+            border-color: #dc3545 !important;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4" style="max-width: 600px;">
+    <h2>发布商品</h2>
+    <a href="index.html" class="btn btn-outline-secondary mb-3">← 返回商品列表</a>
+
+    <div class="card">
+        <div class="card-body">
+            <form id="publishForm">
+                <!-- 商品名称 -->
+                <div class="mb-3">
+                    <label for="name" class="form-label required">商品名称</label>
+                    <input type="text" id="name" class="form-control"
+                           placeholder="请输入商品名称"
+                           maxlength="100"
+                           required>
+                    <div class="error-message" id="nameError"></div>
+                    <div class="form-text">建议填写清晰准确的商品名称</div>
+                </div>
+
+                <!-- 价格 -->
+                <div class="mb-3">
+                    <label for="price" class="form-label required">价格（元）</label>
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" id="price" class="form-control"
+                               step="0.01" min="0" max="999999"
+                               placeholder="0.00" required>
+                    </div>
+                    <div class="error-message" id="priceError"></div>
+                    <div class="form-text">请输入合理的价格，0-999999元之间</div>
+                </div>
+
+                <!-- 商品类别 -->
+                <div class="mb-3">
+                    <label for="category" class="form-label required">商品类别</label>
+                    <select id="category" class="form-select" required>
+                        <option value="">请选择类别</option>
+                        <!-- 将通过JS动态加载 -->
+                    </select>
+                    <div class="error-message" id="categoryError"></div>
+                </div>
+
+                <!-- 商品描述 -->
+                <div class="mb-3">
+                    <label for="description" class="form-label">商品描述</label>
+                    <textarea id="description" class="form-control"
+                              rows="4"
+                              placeholder="请输入商品详细信息，如新旧程度、使用情况、配件、瑕疵说明等"
+                              maxlength="500"></textarea>
+                    <div class="d-flex justify-content-between mt-1">
+                        <div class="form-text">选填，最多500字</div>
+                        <div class="form-text">
+                            <span id="charCount">0</span>/500
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图片上传（可选） -->
+                <div class="mb-4">
+                    <label for="images" class="form-label">商品图片</label>
+                    <input type="file" id="images" class="form-control"
+                           accept="image/*" multiple>
+                    <div class="form-text">可选，最多上传3张图片（每张不超过5MB）</div>
+                    <div id="imagePreview" class="mt-2 d-flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <span id="submitText">发布商品</span>
+                        <span id="loadingSpinner" class="spinner-border spinner-border-sm ms-2 d-none"
+                              role="status" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                        重置表单
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="common.js"></script>
+<script>
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查登录状态
+    if (!checkLogin()) {
+        return;
+    }
+
+    // 加载商品类别
+    loadCategories();
+
+    // 初始化表单事件
+    initFormEvents();
+});
+
+// 加载商品类别
+function loadCategories() {
+    // 先尝试从API获取
+    api.get('categories')
+        .then(res => {
+            const select = document.getElementById('category');
+            if (res.categories && res.categories.length > 0) {
+                res.categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.category_id;
+                    option.textContent = category.category_name;
+                    if (category.description) {
+                        option.title = category.description;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(() => {
+            // API失败时使用默认类别
+            const defaultCategories = [
+                {id: 1, name: '书籍'},
+                {id: 2, name: '电子产品'},
+                {id: 3, name: '生活用品'},
+                {id: 4, name: '服饰'},
+                {id: 5, name: '其他'}
+            ];
+
+            const select = document.getElementById('category');
+            defaultCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                select.appendChild(option);
+            });
+        });
+}
+
+// 初始化表单事件
+function initFormEvents() {
+    // 商品名称实时验证
+    document.getElementById('name').addEventListener('input', function() {
+        validateName(this.value);
+    });
+
+    // 价格实时验证
+    document.getElementById('price').addEventListener('input', function() {
+        validatePrice(this.value);
+    });
+
+    // 描述字符计数
+    document.getElementById('description').addEventListener('input', function() {
+        document.getElementById('charCount').textContent = this.value.length;
+        if (this.value.length > 500) {
+            this.value = this.value.substring(0, 500);
+            document.getElementById('charCount').textContent = 500;
+        }
+    });
+
+    // 图片预览
+    document.getElementById('images').addEventListener('change', function() {
+        previewImages(this.files);
+    });
+
+    // 表单提交
+    document.getElementById('publishForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        handleSubmit();
+    });
+}
+
+// 预览图片
+function previewImages(files) {
+    const preview = document.getElementById('imagePreview');
+    preview.innerHTML = '';
+
+    if (files.length > 3) {
+        showMessage('最多只能上传3张图片', 'warning');
+        return;
+    }
+
+    Array.from(files).forEach(file => {
+        if (file.size > 5 * 1024 * 1024) {
+            showMessage(`图片"${file.name}"超过5MB限制`, 'warning');
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            showMessage(`文件"${file.name}"不是图片格式`, 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'position-relative';
+            imgContainer.style.width = '100px';
+            imgContainer.style.height = '100px';
+
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'rounded border';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-danger position-absolute top-0 end-0';
+            removeBtn.style.transform = 'translate(50%, -50%)';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = function() {
+                imgContainer.remove();
+            };
+
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(removeBtn);
+            preview.appendChild(imgContainer);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 验证商品名称
+function validateName(name) {
+    const errorElement = document.getElementById('nameError');
+    const inputElement = document.getElementById('name');
+
+    if (!name.trim()) {
+        errorElement.textContent = '商品名称不能为空';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    if (name.length > 100) {
+        errorElement.textContent = '商品名称不能超过100字';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    errorElement.textContent = '';
+    inputElement.classList.remove('error-border');
+    return true;
+}
+
+// 验证价格
+function validatePrice(price) {
+    const errorElement = document.getElementById('priceError');
+    const inputElement = document.getElementById('price');
+
+    if (!price) {
+        errorElement.textContent = '价格不能为空';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum)) {
+        errorElement.textContent = '请输入有效的数字';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    if (priceNum < 0) {
+        errorElement.textContent = '价格不能为负数';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    if (priceNum > 999999) {
+        errorElement.textContent = '价格不能超过999999元';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    if (priceNum === 0) {
+        errorElement.textContent = '价格必须大于0';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    errorElement.textContent = '';
+    inputElement.classList.remove('error-border');
+    return true;
+}
+
+// 验证类别
+function validateCategory(categoryId) {
+    const errorElement = document.getElementById('categoryError');
+    const inputElement = document.getElementById('category');
+
+    if (!categoryId) {
+        errorElement.textContent = '请选择商品类别';
+        inputElement.classList.add('error-border');
+        return false;
+    }
+
+    errorElement.textContent = '';
+    inputElement.classList.remove('error-border');
+    return true;
+}
+
+// 表单提交处理
+function handleSubmit() {
+    // 获取表单数据
+    const name = document.getElementById('name').value.trim();
+    const price = document.getElementById('price').value;
+    const categoryId = document.getElementById('category').value;
+    const description = document.getElementById('description').value.trim();
+    const uid = getUserId();
+
+    // 验证所有字段
+    const isNameValid = validateName(name);
+    const isPriceValid = validatePrice(price);
+    const isCategoryValid = validateCategory(categoryId);
+
+    if (!isNameValid || !isPriceValid || !isCategoryValid) {
+        showMessage('请修正表单中的错误', 'error');
+        return;
+    }
+
+    if (!uid) {
+        showMessage('用户信息错误，请重新登录', 'error');
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 1500);
+        return;
+    }
+
+    // 准备数据
+    const formData = {
+        product_name: name,
+        price: parseFloat(price),
+        category_id: parseInt(categoryId),
+        user_id: parseInt(uid),
+        description: description || ''
+    };
+
+    // 显示加载状态
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    submitBtn.disabled = true;
+    submitText.textContent = '发布中...';
+    loadingSpinner.classList.remove('d-none');
+
+    // 发送请求
+    api.post('publish_product', formData)
+        .then(res => {
+            if (res.success) {
+                showMessage('商品发布成功！3秒后返回商品列表', 'success');
+
+                // 3秒后跳转
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
+            } else {
+                throw new Error(res.message || '发布失败');
+            }
+        })
+        .catch(error => {
+            console.error('发布失败:', error);
+            showMessage('发布失败: ' + (error.response?.data?.message || error.message || '未知错误'), 'error');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            submitBtn.disabled = false;
+            submitText.textContent = '发布商品';
+            loadingSpinner.classList.add('d-none');
+        });
+}
+
+// 重置表单
+function resetForm() {
+    if (confirm('确定要重置表单吗？所有填写的内容将丢失。')) {
+        document.getElementById('publishForm').reset();
+        document.getElementById('imagePreview').innerHTML = '';
+        document.getElementById('charCount').textContent = '0';
+
+        // 清除错误状态
+        document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+        document.querySelectorAll('.error-border').forEach(el => el.classList.remove('error-border'));
+
+        showMessage('表单已重置', 'info');
+    }
+}
+</script>
+</body>
+</html>
